@@ -23,6 +23,18 @@ mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("MongoDB Connected Successfully"))
     .catch(err => console.error("MongoDB Connection Error:", err.message));
 
+// Health check endpoint (used by Docker healthcheck & monitoring)
+app.get('/api/health', (req, res) => {
+    const state = mongoose.connection.readyState;
+    const dbStatus = ['disconnected', 'connected', 'connecting', 'disconnecting'][state] || 'unknown';
+    res.status(state === 1 ? 200 : 503).json({
+        status: state === 1 ? 'ok' : 'degraded',
+        db: dbStatus,
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Use Routes
 app.use('/api/admins', adminRoutes);
 app.use('/api/users', userRoutes);

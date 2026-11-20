@@ -1,0 +1,31 @@
+version: "3.9"
+
+# ============================================================
+#  Development override — hot reload for both services
+#  Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ============================================================
+
+services:
+
+  backend:
+    build:
+      context: ./backend
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+    command: ["npx", "nodemon", "server.js"]
+
+  frontend:
+    build:
+      context: ./React/First
+      target: builder           # Use only the build stage, skip nginx
+    volumes:
+      - ./React/First:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:5000
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

@@ -1,0 +1,54 @@
+version: "3.9"
+
+# ============================================================
+#  Organic Food E-Commerce — Docker Compose
+#  Services: frontend (Nginx + React), backend (Express)
+#  Database: MongoDB Atlas (external, free tier)
+# ============================================================
+
+services:
+
+  # ── Backend (Express API) ────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: organic-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env          # MONGO_URI, JWT_SECRET, PORT
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+    ports:
+      - "5000:5000"             # Expose API (useful for Postman / debugging)
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── Frontend (Nginx serving Vite build) ──────────────────
+  frontend:
+    build:
+      context: ./React/First
+      dockerfile: Dockerfile
+      args:
+        # In production, Nginx proxies /api → backend, so we use relative URL
+        VITE_API_URL: ""
+    container_name: organic-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"                 # Site accessible at http://localhost
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Admin = require('../models/admin');
+const { verifyToken, isAdmin } = require('./userRoutes');
+
+// All admin routes require admin role
+router.use(verifyToken, isAdmin);
 
 // Get all admins
 router.get('/', async (req, res) => {
@@ -15,7 +19,7 @@ router.get('/', async (req, res) => {
 // Get admin by ID
 router.get('/:id', async (req, res) => {
     try {
-        const admin = await Admin.findOne(req.params.id);
+        const admin = await Admin.findById(req.params.id);
         if (!admin) {
             return res.status(404).json({ error: "Admin not found" });
         }

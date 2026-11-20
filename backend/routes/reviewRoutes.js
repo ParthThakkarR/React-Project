@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Review = require('../models/review');
+const { verifyToken, isAdmin } = require('./userRoutes');
 
-// Get all reviews
+// Public read routes
 router.get('/', async (req, res) => {
     try {
         const reviews = await Review.find();
@@ -12,7 +13,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get reviews by Product ID
 router.get('/product/:id', async (req, res) => {
     try {
         const reviews = await Review.find({ productId: req.params.id });
@@ -22,24 +22,34 @@ router.get('/product/:id', async (req, res) => {
     }
 });
 
-// Add a new review
-router.post('/', async (req, res) => {
+// Authenticated user can add a review
+router.post('/', verifyToken, async (req, res) => {
     try {
-        const newReview = new Review(req.body);
+        const newReview = new Review({
+            ...req.body,
+            userId: req.user._id
+        });
         await newReview.save();
-        res.status(201).json({ message: "Review added successfully" });
+        res.status(201).json({ message: "Review added successfully", review: newReview });
     } catch (error) {
         res.status(400).json({ error: "Error adding review", details: error.message });
     }
 });
 
-// Delete a review
-router.delete('/:id', async (req, res) => {
+// Delete a review (owner or admin)
+router.delete('/:id', verifyToken, async (req, res) => {
     try {
-        const deletedReview = await Review.findByIdAndDelete(req.params.id);
-        if (!deletedReview) {
+        const review = await Review.findById(req.params.id);
+        if (!review) {
             return res.status(404).json({ error: "Review not found" });
         }
+        
+        // Check ownership
+        if (req.user.role !== 'admin' && review.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: "Access denied. You can only delete your own reviews." });
+        }
+        
+        await Review.findByIdAndDelete(req.params.id);
         res.json({ message: "Review deleted successfully" });
     } catch (error) {
         res.status(500).json({ error: "Error deleting review", details: error.message });
