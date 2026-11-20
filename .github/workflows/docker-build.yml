@@ -1,4 +1,4 @@
-name: CI/CD — Build & Push Docker Images
+name: CI/CD — Build & Push to Docker Hub + GHCR
 
 on:
   push:
@@ -7,13 +7,13 @@ on:
     branches: [main, master]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/organic-food
+  DOCKERHUB_USER: partthh
+  GHCR_PREFIX: ghcr.io/${{ github.repository_owner }}
 
 jobs:
-  # ── Build & push backend image ────────────────────────────
+  # ── Build & Push Backend ─────────────────────────────────
   build-backend:
-    name: Build Backend
+    name: Backend — Build & Push
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,25 +22,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push backend image
+      - name: Build and push backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
+          dockerfile: ./backend/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+            partthh/organic-food-backend:latest
+            partthh/organic-food-backend:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/organic-food-backend:latest
+            ghcr.io/${{ github.repository_owner }}/organic-food-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  # ── Build & push frontend image ───────────────────────────
+  # ── Build & Push Frontend ────────────────────────────────
   build-frontend:
-    name: Build Frontend
+    name: Frontend — Build & Push
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,18 +63,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push frontend image
+      - name: Build and push frontend
         uses: docker/build-push-action@v5
         with:
           context: ./React/First
+          dockerfile: ./React/First/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+            partthh/organic-food-frontend:latest
+            partthh/organic-food-frontend:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/organic-food-frontend:latest
+            ghcr.io/${{ github.repository_owner }}/organic-food-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Summary ──────────────────────────────────────────────
+  summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Print image URLs
+        run: |
+          echo "✅ Docker Hub:"
+          echo "   Backend:  https://hub.docker.com/r/partthh/organic-food-backend"
+          echo "   Frontend: https://hub.docker.com/r/partthh/organic-food-frontend"
+          echo ""
+          echo "✅ GitHub Container Registry:"
+          echo "   Backend:  ghcr.io/${{ github.repository_owner }}/organic-food-backend:latest"
+          echo "   Frontend: ghcr.io/${{ github.repository_owner }}/organic-food-frontend:latest"
