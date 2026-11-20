@@ -1,27 +1,51 @@
 version: "3.9"
 
 # ============================================================
-#  Organic Food E-Commerce — Docker Compose
-#  Services: frontend (Nginx + React), backend (Express)
-#  Database: MongoDB Atlas (external, free tier)
+#  Organic Food E-Commerce — Docker Compose Full Stack
+#  Services:
+#    - mongodb:  MongoDB Database (Persistent Volume)
+#    - backend:  Express API (Node.js)
+#    - frontend: Nginx Reverse Proxy + React Vite SPA
 # ============================================================
 
 services:
 
-  # ── Backend (Express API) ────────────────────────────────
+  # ── MongoDB Database ───────────────────────────────────────
+  mongodb:
+    image: mongo:7-jammy
+    container_name: organic-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"           # Accessible on host at localhost:27017
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Backend (Express API) ──────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: organic-backend
     restart: unless-stopped
-    env_file:
-      - ./backend/.env          # MONGO_URI, JWT_SECRET, PORT
     environment:
       NODE_ENV: production
       PORT: 5000
+      # Uses the dockerized mongodb service by default
+      MONGO_URI: mongodb://mongodb:27017/ecommerce
+      JWT_SECRET: devops_ecommerce_secret_key_2026_demo
     ports:
-      - "5000:5000"             # Expose API (useful for Postman / debugging)
+      - "5000:5000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
     networks:
       - app-network
     healthcheck:
@@ -31,23 +55,26 @@ services:
       retries: 3
       start_period: 15s
 
-  # ── Frontend (Nginx serving Vite build) ──────────────────
+  # ── Frontend (Nginx serving Vite build) ────────────────────
   frontend:
     build:
       context: ./React/First
       dockerfile: Dockerfile
       args:
-        # In production, Nginx proxies /api → backend, so we use relative URL
-        VITE_API_URL: ""
+        VITE_API_URL: ""        # Relative URL proxied by Nginx
     container_name: organic-frontend
     restart: unless-stopped
     ports:
-      - "80:80"                 # Site accessible at http://localhost
+      - "80:80"                 # Accessible at http://localhost
     depends_on:
       backend:
         condition: service_healthy
     networks:
       - app-network
+
+volumes:
+  mongo-data:
+    driver: local
 
 networks:
   app-network:
