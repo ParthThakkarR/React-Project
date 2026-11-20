@@ -42,7 +42,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          dockerfile: ./backend/Dockerfile
+          file: ./backend/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             partthh/organic-food-backend:latest
@@ -83,7 +83,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./React/First
-          dockerfile: ./React/First/Dockerfile
+          file: ./React/First/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             partthh/organic-food-frontend:latest

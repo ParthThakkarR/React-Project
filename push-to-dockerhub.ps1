@@ -6,7 +6,8 @@ $DOCKERHUB_USER = "partthh"
 $BACKEND_IMAGE  = "$DOCKERHUB_USER/organic-food-backend"
 $FRONTEND_IMAGE = "$DOCKERHUB_USER/organic-food-frontend"
 $TAG            = "latest"
-$SHA_TAG        = (git -C $PSScriptRoot rev-parse --short HEAD 2>$null) ?? "manual"
+$SHA_TAG = git -C $PSScriptRoot rev-parse --short HEAD 2>$null
+if (-not $SHA_TAG) { $SHA_TAG = "manual" }
 
 Write-Host "`n==============================" -ForegroundColor Cyan
 Write-Host " Organic Food — Docker Hub Push" -ForegroundColor Cyan
